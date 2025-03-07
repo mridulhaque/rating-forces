@@ -5,30 +5,36 @@ export class PerformanceCalculator {
     private static readonly ITERATIONS = 30;
 
     /**
-     * Calculates performance rating based on rank and competitor ratings
+     * Calculates performance rating based on rank and competitor ratings.
+     * 
+     * The method finds the rating R such that the sum of win probabilities
+     * against all competitors equals (rank - 0.5), which is similar to how
+     * Codeforces calculates performance rating.
+     *
      * @param rank - 1-based rank in the contest
      * @param ratings - Array of competitor ratings
      * @returns Calculated performance rating
      */
     public static calculateRating(rank: number, ratings: number[]): number {
-        // Calculate seed - probability of performing better than given rank
-        // sort ratings in descending order
-        const sortedRatings = ratings.sort((a, b) => b - a);
-        
-        const seed = (rank - 1) / sortedRatings.length;
-        
-        // Binary search to find rating that would give this seed
+        // Target: sum of win probabilities should equal (rank - 0.5)
+        const targetSum = rank - 0.5;
+
         let left = this.MIN_RATING;
         let right = this.MAX_RATING;
-        
+
+        // Binary search for the rating R that gives the desired target sum.
+        // Note: As R increases, win probabilities decrease, so the sum is monotonically decreasing.
         for (let iter = 0; iter < this.ITERATIONS; iter++) {
-            const mid = Math.floor((left + right) / 2);
-            const currSeed = this.calculateSeed(mid, ratings);
+            const mid = (left + right) / 2;
+            const currSum = this.calculateSeed(mid, ratings);
             
-            if (currSeed < seed) {
-                right = mid;
-            } else {
+            if (currSum > targetSum) {
+                // If the current sum is too high, then our candidate rating is too low.
+                // Increase it by moving the lower bound up.
                 left = mid;
+            } else {
+                // Otherwise, our candidate rating is too high, so move the upper bound down.
+                right = mid;
             }
         }
         
@@ -36,10 +42,11 @@ export class PerformanceCalculator {
     }
 
     /**
-     * Calculates the seed (average win probability) for a given rating
-     * @param rating - Rating to calculate seed for
-     * @param competitorRatings - Array of competitor ratings
-     * @returns Calculated seed value
+     * Calculates the total win probability for a given rating against all competitor ratings.
+     *
+     * @param rating - The candidate performance rating to evaluate.
+     * @param competitorRatings - Array of competitor ratings.
+     * @returns The total win probability (the “seed”) for that rating.
      */
     private static calculateSeed(rating: number, competitorRatings: number[]): number {
         let totalProbability = 0;
@@ -48,16 +55,17 @@ export class PerformanceCalculator {
             totalProbability += this.calculateWinProbability(rating, competitorRating);
         }
         
-        return totalProbability / competitorRatings.length;
+        return totalProbability;
     }
 
     /**
-     * Calculates win probability using Elo rating formula
-     * @param ratingA - First player's rating
-     * @param ratingB - Second player's rating
-     * @returns Probability of first player winning
+     * Calculates the win probability using the Elo formula.
+     *
+     * @param ratingA - Candidate performance rating.
+     * @param ratingB - Competitor rating.
+     * @returns Probability of the candidate outperforming the competitor.
      */
     private static calculateWinProbability(ratingA: number, ratingB: number): number {
         return 1.0 / (1.0 + Math.pow(10, (ratingA - ratingB) / this.ELO_FACTOR));
     }
-} 
+}
